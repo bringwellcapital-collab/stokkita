@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StokKita — Inventory Tracker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; }
+
+  .header { background: linear-gradient(135deg, #2d6a4f, #40916c); color: white; padding: 20px; text-align: center; }
+  .header h1 { font-size: 24px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+  .nav { display: flex; background: white; border-bottom: 1px solid #e2e8f0; }
+  .nav-btn { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; border: none; background: none; cursor: pointer; color: #718096; border-bottom: 3px solid transparent; }
+  .nav-btn.active { color: #2d6a4f; border-bottom-color: #2d6a4f; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; }
+  .stat-card { background: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .stat-card .number { font-size: 28px; font-weight: 700; color: #2d6a4f; }
+  .stat-card .label { font-size: 11px; color: #718096; margin-top: 4px; }
+  .stat-card.alert .number { color: #e53e3e; }
+
+  .section { padding: 0 16px 16px; }
+  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #2d3748; }
+
+  .add-form { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; font-weight: 600; color: #4a5568; }
+  .form-group input, .form-group select { padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+  .form-group input:focus, .form-group select:focus { border-color: #40916c; }
+  .form-group.full { grid-column: 1 / -1; }
+  .btn-add { width: 100%; margin-top: 12px; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-add:hover { background: #1b4332; }
+  .btn-add.secondary { background: #4a5568; margin-top: 6px; }
+
+  .search-bar { width: 100%; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: white; outline: none; margin-bottom: 12px; }
+
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .item-card { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; border-left: 4px solid #40916c; }
+  .item-card.low-stock { border-left-color: #e53e3e; }
+  .item-card.out-of-stock { border-left-color: #718096; opacity: 0.7; }
+
+  .item-icon { width: 42px; height: 42px; border-radius: 10px; background: #e9f5ee; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .item-card.low-stock .item-icon { background: #fff5f5; }
+
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 15px; font-weight: 600; color: #1a202c; }
+  .item-meta { font-size: 12px; color: #718096; margin-top: 3px; }
+  .item-price { font-size: 14px; font-weight: 700; color: #2d6a4f; }
+
+  .item-qty { text-align: center; flex-shrink: 0; }
+  .qty-display { font-size: 20px; font-weight: 700; color: #1a202c; }
+  .qty-label { font-size: 10px; color: #a0aec0; }
+  .qty-controls { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .qty-btn.minus { background: #fed7d7; color: #c53030; }
+  .qty-btn.plus { background: #c6f6d5; color: #276749; }
+
+  .item-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .btn-edit { background: #ebf8ff; color: #2b6cb0; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-delete { background: #fff5f5; color: #c53030; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; margin-top: 4px; }
+  .badge.ok { background: #c6f6d5; color: #276749; }
+  .badge.low { background: #fed7d7; color: #c53030; }
+  .badge.out { background: #e2e8f0; color: #718096; }
+
+  .alert-banner { background: #fff5f5; border: 1.5px solid #feb2b2; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .alert-banner p { font-size: 13px; color: #c53030; font-weight: 500; }
+
+  /* Edit Modal */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1a202c; }
+  .modal .form-group { margin-bottom: 12px; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .btn-save { flex: 1; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-cancel { flex: 1; padding: 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+  /* Pricing Page */
+  .pricing-header { text-align: center; padding: 24px 16px 8px; }
+  .pricing-header h2 { font-size: 22px; font-weight: 700; color: #1a202c; }
+  .pricing-header p { font-size: 14px; color: #718096; margin-top: 6px; }
+
+  .pricing-cards { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+  .pricing-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); border: 2px solid #e2e8f0; position: relative; }
+  .pricing-card.popular { border-color: #2d6a4f; }
+  .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #2d6a4f; color: white; padding: 4px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .plan-name { font-size: 18px; font-weight: 700; color: #1a202c; }
+  .plan-price { font-size: 36px; font-weight: 700; color: #2d6a4f; margin: 8px 0 4px; }
+  .plan-price span { font-size: 16px; color: #718096; font-weight: 400; }
+  .plan-desc { font-size: 13px; color: #718096; margin-bottom: 16px; }
+  .plan-features { list-style: none; margin-bottom: 20px; }
+  .plan-features li { font-size: 14px; color: #4a5568; padding: 6px 0; border-bottom: 1px solid #f7fafc; display: flex; align-items: center; gap: 8px; }
+  .plan-features li::before { content: "✅"; font-size: 14px; }
+  .btn-subscribe { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-subscribe.primary { background: #2d6a4f; color: white; }
+  .btn-subscribe.outline { background: white; color: #2d6a4f; border: 2px solid #2d6a4f; }
+
+  /* Admin Pricing Settings */
+  .admin-section { background: white; border-radius: 12px; padding: 20px; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .admin-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1a202c; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+  .price-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .price-input-row label { flex: 1; font-size: 14px; color: #4a5568; font-weight: 500; }
+  .price-input-row input { width: 100px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; text-align: right; }
+  .btn-save-pricing { width: 100%; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .success-msg { display: none; text-align: center; color: #276749; font-size: 14px; font-weight: 600; margin-top: 10px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: #a0aec0; }
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: #a0aec0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📦 StokKita</h1>
+  <p>Pengurus Inventori Kedai Runcit</p>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('inventory')">📦 Inventory</button>
+  <button class="nav-btn" onclick="showPage('pricing')">💰 Pricing</button>
+  <button class="nav-btn" onclick="showPage('admin')">⚙️ Settings</button>
+</div>
+
+<!-- INVENTORY PAGE -->
+<div id="page-inventory" class="page active">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="number" id="totalItems">0</div>
+      <div class="label">Total Items</div>
+    </div>
+    <div class="stat-card alert">
+      <div class="number" id="lowStockCount">0</div>
+      <div class="label">Low Stock</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="totalValue">RM0</div>
+      <div class="label">Stock Value</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="add-form">
+      <div class="section-title">➕ Add New Item</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Item Name</label>
+          <input type="text" id="itemName" placeholder="e.g. Milo 1kg">
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="itemQty" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Price (RM)</label>
+          <input type="number" id="itemPrice" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <label>Low Stock Alert</label>
+          <input type="number" id="itemAlert" placeholder="5" min="0">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="itemCat" placeholder="e.g. Drinks">
+        </div>
+      </div>
+      <button class="btn-add" onclick="addItem()">Add to Inventory</button>
+    </div>
+
+    <input class="search-bar" type="text" id="searchBar" placeholder="🔍 Search items..." oninput="renderItems()">
+
+    <div id="alertBanner" style="display:none" class="alert-banner">
+      <span>⚠️</span>
+      <p id="alertText"></p>
+    </div>
+
+    <div class="section-title">📋 Inventory List</div>
+    <div class="item-list" id="itemList"></div>
+  </div>
+</div>
+
+<!-- PRICING PAGE -->
+<div id="page-pricing" class="page">
+  <div class="pricing-header">
+    <h2>Pilih Plan Anda</h2>
+    <p>Semua plan termasuk 14 hari free trial</p>
+  </div>
+
+  <div class="pricing-cards" id="pricingCards"></div>
+</div>
+
+<!-- ADMIN SETTINGS PAGE -->
+<div id="page-admin" class="page">
+  <div class="admin-section">
+    <h3>💰 Set Your Subscription Prices</h3>
+    <div class="price-input-row">
+      <label>Basic Plan (per month)</label>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:13px;color:#718096">RM</span>
+        <input type="number" id="priceBasic" value="99" min="0">
+      </div>
+    </div>
+    <div class="price-input-row">
+      <label>Pro Plan (per month)</label>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:13px;color:#718096">RM</span>
+        <input type="number" id="pricePro" value="199" min="0">
+      </div>
+    </div>
+    <div class="price-input-row">
+      <label>Enterprise Plan (per month)</label>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:13px;color:#718096">RM</span>
+        <input type="number" id="priceEnterprise" value="299" min="0">
+      </div>
+    </div>
+    <button class="btn-save-pricing" onclick="savePricing()">💾 Save Pricing</button>
+    <div class="success-msg" id="successMsg">✅ Pricing updated successfully!</div>
+  </div>
+
+  <div class="admin-section">
+    <h3>🏪 Shop Settings</h3>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Shop Name</label>
+      <input type="text" id="shopName" placeholder="e.g. Kedai Vincent" value="Kedai Vincent">
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Owner Name</label>
+      <input type="text" id="ownerName" placeholder="e.g. Vincent">
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Telegram/WhatsApp Number</label>
+      <input type="text" id="contactNum" placeholder="e.g. 60123456789">
+    </div>
+    <button class="btn-save-pricing" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>✏️ Edit Item</h3>
+    <div class="form-group">
+      <label>Item Name</label>
+      <input type="text" id="editName">
+    </div>
+    <div class="form-group">
+      <label>Price (RM)</label>
+      <input type="number" id="editPrice" step="0.01" min="0">
+    </div>
+    <div class="form-group">
+      <label>Quantity</label>
+      <input type="number" id="editQty" min="0">
+    </div>
+    <div class="form-group">
+      <label>Low Stock Alert Level</label>
+      <input type="number" id="editAlert" min="0">
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input type="text" id="editCat">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeEdit()">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">StokKita v2.0 · Made for Malaysian SMEs</div>
+
+<script>
+let items = JSON.parse(localStorage.getItem('stokkita_items') || '[]');
+let editingId = null;
+let pricing = JSON.parse(localStorage.getItem('stokkita_pricing') || '{"basic":99,"pro":199,"enterprise":299}');
+
+const EMOJIS = { 'drinks':'🥤','food':'🍜','snacks':'🍪','cleaning':'🧹','personal':'🧴','default':'📦' };
+
+function getEmoji(cat) {
+  if (!cat) return '📦';
+  const k = cat.toLowerCase();
+  for (let key in EMOJIS) if (k.includes(key)) return EMOJIS[key];
+  return '📦';
+}
+
+function save() { localStorage.setItem('stokkita_items', JSON.stringify(items)); }
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.target.classList.add('active');
+  if (page === 'pricing') renderPricing();
+  if (page === 'admin') loadAdminSettings();
+}
+
+function addItem() {
+  const name = document.getElementById('itemName').value.trim();
+  const qty = parseInt(document.getElementById('itemQty').value) || 0;
+  const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+  const alert = parseInt(document.getElementById('itemAlert').value) || 5;
+  const cat = document.getElementById('itemCat').value.trim();
+  if (!name) { document.getElementById('itemName').focus(); return; }
+  items.push({ id: Date.now(), name, qty, price, alert, cat });
+  save();
+  document.getElementById('itemName').value = '';
+  document.getElementById('itemQty').value = '';
+  document.getElementById('itemPrice').value = '';
+  document.getElementById('itemAlert').value = '';
+  document.getElementById('itemCat').value = '';
+  renderItems();
+}
+
+function updateQty(id, delta) {
+  const item = items.find(i => i.id === id);
+  if (item) { item.qty = Math.max(0, item.qty + delta); save(); renderItems(); }
+}
+
+function deleteItem(id) {
+  if (confirm('Remove this item?')) { items = items.filter(i => i.id !== id); save(); renderItems(); }
+}
+
+function openEdit(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  editingId = id;
+  document.getElementById('editName').value = item.name;
+  document.getElementById('editPrice').value = item.price;
+  document.getElementById('editQty').value = item.qty;
+  document.getElementById('editAlert').value = item.alert;
+  document.getElementById('editCat').value = item.cat || '';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEdit() {
+  editingId = null;
+  document.getElementById('editModal').classList.remove('show');
+}
+
+function saveEdit() {
+  const item = items.find(i => i.id === editingId);
+  if (!item) return;
+  item.name = document.getElementById('editName').value.trim() || item.name;
+  item.price = parseFloat(document.getElementById('editPrice').value) || 0;
+  item.qty = parseInt(document.getElementById('editQty').value) || 0;
+  item.alert = parseInt(document.getElementById('editAlert').value) || 5;
+  item.cat = document.getElementById('editCat').value.trim();
+  save();
+  closeEdit();
+  renderItems();
+}
+
+function renderItems() {
+  const search = document.getElementById('searchBar').value.toLowerCase();
+  const filtered = items.filter(i => i.name.toLowerCase().includes(search) || (i.cat||'').toLowerCase().includes(search));
+
+  document.getElementById('totalItems').textContent = items.length;
+  document.getElementById('lowStockCount').textContent = items.filter(i => i.qty <= i.alert).length;
+  document.getElementById('totalValue').textContent = 'RM' + items.reduce((s,i) => s+(i.qty*i.price),0).toFixed(0);
+
+  const alertItems = items.filter(i => i.qty <= i.alert);
+  const banner = document.getElementById('alertBanner');
+  if (alertItems.length > 0) {
+    banner.style.display = 'flex';
+    document.getElementById('alertText').textContent = alertItems.length + ' item(s) perlu restock: ' + alertItems.slice(0,3).map(i=>i.name).join(', ');
+  } else { banner.style.display = 'none'; }
+
+  const list = document.getElementById('itemList');
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div style="font-size:48px;margin-bottom:12px">📭</div><p>${items.length===0?'No items yet. Add your first item above!':'No items match your search.'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(item => {
+    const isOut = item.qty === 0;
+    const isLow = !isOut && item.qty <= item.alert;
+    const cardClass = isOut ? 'out-of-stock' : isLow ? 'low-stock' : '';
+    const badge = isOut ? '<span class="badge out">Out of Stock</span>' : isLow ? '<span class="badge low">Low Stock</span>' : '<span class="badge ok">In Stock</span>';
+    return `
+      <div class="item-card ${cardClass}">
+        <div class="item-icon">${getEmoji(item.cat)}</div>
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-meta">${item.cat||'General'} · Alert at ${item.alert}</div>
+          <div class="item-price">RM ${item.price.toFixed(2)}</div>
+          ${badge}
+        </div>
+        <div class="item-qty">
+          <div class="qty-display">${item.qty}</div>
+          <div class="qty-label">units</div>
+          <div class="qty-controls">
+            <button class="qty-btn minus" onclick="updateQty(${item.id},-1)">−</button>
+            <button class="qty-btn plus" onclick="updateQty(${item.id},1)">+</button>
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="btn-edit" onclick="openEdit(${item.id})">✏️ Edit</button>
+          <button class="btn-delete" onclick="deleteItem(${item.id})">🗑 Del</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderPricing() {
+  const plans = [
+    {
+      name: 'Basic',
+      price: pricing.basic,
+      desc: 'Sesuai untuk kedai kecil',
+      features: ['Track unlimited items', 'Low stock alerts', 'Telegram notifications', 'Mobile friendly', '14 hari free trial'],
+      popular: false,
+      btn: 'Mula Free Trial'
+    },
+    {
+      name: 'Pro',
+      price: pricing.pro,
+      desc: 'Paling popular untuk SME',
+      features: ['Semua Basic features', 'Auto reorder alerts', 'Sales reports weekly', 'Multi-user access', 'Priority support'],
+      popular: true,
+      btn: 'Pilih Pro Plan'
+    },
+    {
+      name: 'Enterprise',
+      price: pricing.enterprise,
+      desc: 'Untuk perniagaan yang besar',
+      features: ['Semua Pro features', 'Custom branding', 'API integration', 'Dedicated support', 'Custom reports'],
+      popular: false,
+      btn: 'Hubungi Kami'
+    }
+  ];
+
+  document.getElementById('pricingCards').innerHTML = plans.map(plan => `
+    <div class="pricing-card ${plan.popular ? 'popular' : ''}">
+      ${plan.popular ? '<div class="popular-badge">⭐ PALING POPULAR</div>' : ''}
+      <div class="plan-name">${plan.name}</div>
+      <div class="plan-price">RM ${plan.price}<span>/bulan</span></div>
+      <div class="plan-desc">${plan.desc}</div>
+      <ul class="plan-features">
+        ${plan.features.map(f => `<li>${f}</li>`).join('')}
+      </ul>
+      <button class="btn-subscribe ${plan.popular ? 'primary' : 'outline'}" onclick="alert('Hubungi kami untuk subscribe ${plan.name} plan pada RM ${plan.price}/bulan!')">
+        ${plan.btn}
+      </button>
+    </div>
+  `).join('');
+}
+
+function savePricing() {
+  pricing.basic = parseInt(document.getElementById('priceBasic').value) || 99;
+  pricing.pro = parseInt(document.getElementById('pricePro').value) || 199;
+  pricing.enterprise = parseInt(document.getElementById('priceEnterprise').value) || 299;
+  localStorage.setItem('stokkita_pricing', JSON.stringify(pricing));
+  const msg = document.getElementById('successMsg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+function loadAdminSettings() {
+  document.getElementById('priceBasic').value = pricing.basic;
+  document.getElementById('pricePro').value = pricing.pro;
+  document.getElementById('priceEnterprise').value = pricing.enterprise;
+}
+
+function saveSettings() {
+  alert('Settings saved! ✅');
+}
+
+// Sample data
+if (items.length === 0) {
+  items = [
+    { id: 1, name: 'Milo 1kg', qty: 3, price: 18.90, alert: 5, cat: 'Drinks' },
+    { id: 2, name: 'Beras Cap Rambutan 5kg', qty: 8, price: 24.50, alert: 5, cat: 'Food' },
+    { id: 3, name: 'Maggi Mee (pack)', qty: 2, price: 4.20, alert: 10, cat: 'Food' },
+    { id: 4, name: 'Sabun Mandi Dettol', qty: 8, price: 6.50, alert: 5, cat: 'Personal' },
+  ];
+  save();
+}
+
+renderItems();
+</script>
+</body>
+</html>
