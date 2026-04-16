@@ -484,12 +484,15 @@ if (items.length === 0) {
   save();
 }
 
-renderItems();
+<!-- SUPABASE (DO NOT TOUCH STRUCTURE) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-const SUPABASE_URL = 'https://mjvlthcriljwpgtuwwel.supabase.co';
+const SUPABASE_URL = 'https://mjvlthcrijwpgtuwel.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qdmx0aGNyaWxqd3BndHV3d2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5MTA4MzgsImV4cCI6MjA5MTQ4NjgzOH0.KFSPUdzqLpJa7xtvPmL1Yf1YfZCvKGkWXXrzb9D-JCA';
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+console.log("✅ Supabase Connected:", supabaseClient);
 </script>
+
