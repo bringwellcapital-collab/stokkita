@@ -4,495 +4,564 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StokKita — Inventory Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#f0f4f8; color:#1a202c; }
 
-  .header { background: linear-gradient(135deg, #2d6a4f, #40916c); color: white; padding: 20px; text-align: center; }
-  .header h1 { font-size: 24px; font-weight: 700; }
-  .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+/* AUTH SCREEN */
+.auth-screen { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; background:linear-gradient(135deg,#2d6a4f,#40916c); }
+.auth-box { background:white; border-radius:20px; padding:32px 24px; width:100%; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+.auth-logo { text-align:center; margin-bottom:24px; }
+.auth-logo h1 { font-size:28px; font-weight:700; color:#2d6a4f; }
+.auth-logo p { font-size:13px; color:#718096; margin-top:4px; }
+.auth-tabs { display:flex; margin-bottom:24px; border-radius:10px; overflow:hidden; border:1.5px solid #e2e8f0; }
+.auth-tab { flex:1; padding:10px; text-align:center; font-size:14px; font-weight:600; cursor:pointer; border:none; background:#f7fafc; color:#718096; }
+.auth-tab.active { background:#2d6a4f; color:white; }
+.field { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
+.field label { font-size:12px; font-weight:600; color:#4a5568; }
+.field input { padding:12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; outline:none; }
+.field input:focus { border-color:#40916c; }
+.btn-auth { width:100%; padding:14px; background:#2d6a4f; color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }
+.btn-auth:hover { background:#1b4332; }
+.auth-msg { text-align:center; font-size:13px; margin-top:12px; padding:10px; border-radius:8px; display:none; }
+.auth-msg.error { background:#fff5f5; color:#c53030; display:block; }
+.auth-msg.success { background:#c6f6d5; color:#276749; display:block; }
 
-  .nav { display: flex; background: white; border-bottom: 1px solid #e2e8f0; }
-  .nav-btn { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; border: none; background: none; cursor: pointer; color: #718096; border-bottom: 3px solid transparent; }
-  .nav-btn.active { color: #2d6a4f; border-bottom-color: #2d6a4f; }
+/* LOADING */
+.loading-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f0f4f8; }
+.spinner { width:40px; height:40px; border:4px solid #e2e8f0; border-top-color:#2d6a4f; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
 
-  .page { display: none; }
-  .page.active { display: block; }
+/* SETUP SCREEN */
+.setup-screen { min-height:100vh; background:#f0f4f8; padding:20px; }
+.setup-card { background:white; border-radius:16px; padding:24px; max-width:400px; margin:0 auto; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+.setup-card h2 { font-size:20px; font-weight:700; margin-bottom:6px; }
+.setup-card p { font-size:13px; color:#718096; margin-bottom:20px; }
 
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; }
-  .stat-card { background: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .stat-card .number { font-size: 28px; font-weight: 700; color: #2d6a4f; }
-  .stat-card .label { font-size: 11px; color: #718096; margin-top: 4px; }
-  .stat-card.alert .number { color: #e53e3e; }
+/* MAIN APP */
+.app { display:none; }
+.header { background:linear-gradient(135deg,#2d6a4f,#40916c); color:white; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+.header-left h1 { font-size:20px; font-weight:700; }
+.header-left p { font-size:12px; opacity:0.85; margin-top:2px; }
+.btn-logout { background:rgba(255,255,255,0.2); color:white; border:none; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
 
-  .section { padding: 0 16px 16px; }
-  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #2d3748; }
+.nav { display:flex; background:white; border-bottom:2px solid #e2e8f0; position:sticky; top:0; z-index:50; }
+.nav-btn { flex:1; padding:12px 4px; font-size:12px; font-weight:600; border:none; background:none; cursor:pointer; color:#718096; border-bottom:3px solid transparent; }
+.nav-btn.active { color:#2d6a4f; border-bottom-color:#2d6a4f; background:#f0fdf4; }
 
-  .add-form { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 16px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .form-group { display: flex; flex-direction: column; gap: 4px; }
-  .form-group label { font-size: 12px; font-weight: 600; color: #4a5568; }
-  .form-group input, .form-group select { padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
-  .form-group input:focus, .form-group select:focus { border-color: #40916c; }
-  .form-group.full { grid-column: 1 / -1; }
-  .btn-add { width: 100%; margin-top: 12px; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .btn-add:hover { background: #1b4332; }
-  .btn-add.secondary { background: #4a5568; margin-top: 6px; }
+.page { display:none; padding-bottom:100px; }
+.page.active { display:block; }
 
-  .search-bar { width: 100%; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: white; outline: none; margin-bottom: 12px; }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:16px; }
+.stat-card { background:white; border-radius:12px; padding:14px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+.stat-num { font-size:24px; font-weight:700; color:#2d6a4f; }
+.stat-num.red { color:#e53e3e; }
+.stat-lbl { font-size:11px; color:#718096; margin-top:3px; }
 
-  .item-list { display: flex; flex-direction: column; gap: 10px; }
-  .item-card { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; border-left: 4px solid #40916c; }
-  .item-card.low-stock { border-left-color: #e53e3e; }
-  .item-card.out-of-stock { border-left-color: #718096; opacity: 0.7; }
+.section { padding:0 16px 16px; }
+.card { background:white; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); margin-bottom:14px; }
+.card-title { font-size:15px; font-weight:600; margin-bottom:12px; color:#2d3748; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field2 { display:flex; flex-direction:column; gap:4px; }
+.field2.full { grid-column:1/-1; }
+.field2 label { font-size:12px; font-weight:600; color:#4a5568; }
+.field2 input { padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none; }
+.field2 input:focus { border-color:#40916c; }
+.btn-green { width:100%; padding:12px; background:#2d6a4f; color:white; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; margin-top:10px; }
 
-  .item-icon { width: 42px; height: 42px; border-radius: 10px; background: #e9f5ee; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-  .item-card.low-stock .item-icon { background: #fff5f5; }
+.search { width:100%; padding:12px 16px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; background:white; outline:none; margin-bottom:12px; }
+.alert-banner { background:#fff5f5; border:1.5px solid #feb2b2; border-radius:10px; padding:12px 16px; margin-bottom:12px; font-size:13px; color:#c53030; font-weight:500; display:none; }
 
-  .item-info { flex: 1; min-width: 0; }
-  .item-name { font-size: 15px; font-weight: 600; color: #1a202c; }
-  .item-meta { font-size: 12px; color: #718096; margin-top: 3px; }
-  .item-price { font-size: 14px; font-weight: 700; color: #2d6a4f; }
+.item-list { display:flex; flex-direction:column; gap:10px; }
+.item-card { background:white; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px; border-left:4px solid #40916c; }
+.item-card.low { border-left-color:#e53e3e; }
+.item-card.out { border-left-color:#718096; opacity:0.7; }
+.item-icon { width:40px; height:40px; border-radius:10px; background:#e9f5ee; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.item-card.low .item-icon { background:#fff5f5; }
+.item-info { flex:1; min-width:0; }
+.item-name { font-size:15px; font-weight:600; }
+.item-meta { font-size:12px; color:#718096; margin-top:2px; }
+.item-price { font-size:14px; font-weight:700; color:#2d6a4f; margin-top:2px; }
+.badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; margin-top:4px; }
+.badge-ok { background:#c6f6d5; color:#276749; }
+.badge-low { background:#fed7d7; color:#c53030; }
+.badge-out { background:#e2e8f0; color:#718096; }
+.qty-wrap { text-align:center; flex-shrink:0; }
+.qty-num { font-size:20px; font-weight:700; }
+.qty-lbl { font-size:10px; color:#a0aec0; }
+.qty-btns { display:flex; gap:6px; margin-top:4px; }
+.qbtn { width:28px; height:28px; border-radius:50%; border:none; font-size:16px; font-weight:700; cursor:pointer; }
+.qbtn.minus { background:#fed7d7; color:#c53030; }
+.qbtn.plus { background:#c6f6d5; color:#276749; }
+.item-actions { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.btn-edit { background:#ebf8ff; color:#2b6cb0; border:none; border-radius:6px; padding:5px 8px; font-size:12px; font-weight:600; cursor:pointer; }
+.btn-del { background:#fff5f5; color:#c53030; border:none; border-radius:6px; padding:5px 8px; font-size:12px; font-weight:600; cursor:pointer; }
+.empty { text-align:center; padding:40px 20px; color:#a0aec0; font-size:14px; }
 
-  .item-qty { text-align: center; flex-shrink: 0; }
-  .qty-display { font-size: 20px; font-weight: 700; color: #1a202c; }
-  .qty-label { font-size: 10px; color: #a0aec0; }
-  .qty-controls { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-  .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .qty-btn.minus { background: #fed7d7; color: #c53030; }
-  .qty-btn.plus { background: #c6f6d5; color: #276749; }
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center; padding:20px; }
+.overlay.show { display:flex; }
+.modal { background:white; border-radius:16px; padding:24px; width:100%; max-width:360px; }
+.modal h3 { font-size:18px; font-weight:700; margin-bottom:16px; }
+.modal-field { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+.modal-field label { font-size:12px; font-weight:600; color:#4a5568; }
+.modal-field input { padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none; }
+.modal-btns { display:flex; gap:8px; margin-top:16px; }
+.modal-btns button { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
 
-  .item-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-  .btn-edit { background: #ebf8ff; color: #2b6cb0; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
-  .btn-delete { background: #fff5f5; color: #c53030; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pricing-top { text-align:center; padding:24px 16px 8px; }
+.pricing-top h2 { font-size:22px; font-weight:700; }
+.pricing-top p { font-size:14px; color:#718096; margin-top:6px; }
+.plan-cards { display:flex; flex-direction:column; gap:16px; padding:16px; }
+.plan-card { background:white; border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.08); border:2px solid #e2e8f0; position:relative; }
+.plan-card.hot { border-color:#2d6a4f; }
+.hot-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:#2d6a4f; color:white; padding:4px 16px; border-radius:99px; font-size:12px; font-weight:700; white-space:nowrap; }
+.plan-name { font-size:18px; font-weight:700; }
+.plan-price { font-size:36px; font-weight:700; color:#2d6a4f; margin:8px 0 4px; }
+.plan-price span { font-size:16px; color:#718096; font-weight:400; }
+.plan-desc { font-size:13px; color:#718096; margin-bottom:14px; }
+.plan-features { list-style:none; margin-bottom:18px; }
+.plan-features li { font-size:13px; color:#4a5568; padding:5px 0; border-bottom:1px solid #f7fafc; }
+.plan-features li::before { content:"✅ "; }
+.btn-sub { width:100%; padding:13px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
+.btn-sub.green { background:#2d6a4f; color:white; }
+.btn-sub.outline { background:white; color:#2d6a4f; border:2px solid #2d6a4f; }
 
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; margin-top: 4px; }
-  .badge.ok { background: #c6f6d5; color: #276749; }
-  .badge.low { background: #fed7d7; color: #c53030; }
-  .badge.out { background: #e2e8f0; color: #718096; }
+.contact-block { background:linear-gradient(135deg,#2d6a4f,#40916c); border-radius:16px; padding:24px; margin:0 16px 16px; text-align:center; color:white; }
+.contact-block h3 { font-size:18px; font-weight:700; margin-bottom:8px; }
+.contact-block p { font-size:13px; opacity:0.9; margin-bottom:16px; }
+.btn-wa { display:inline-flex; align-items:center; gap:8px; background:#25D366; color:white; padding:13px 28px; border-radius:50px; text-decoration:none; font-size:15px; font-weight:700; margin-bottom:10px; }
+.btn-demo { display:flex; align-items:center; justify-content:center; gap:8px; background:white; color:#2d6a4f; padding:13px 28px; border-radius:50px; text-decoration:none; font-size:15px; font-weight:700; }
 
-  .alert-banner { background: #fff5f5; border: 1.5px solid #feb2b2; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
-  .alert-banner p { font-size: 13px; color: #c53030; font-weight: 500; }
+.settings-card { background:white; border-radius:12px; padding:20px; margin:16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+.settings-card h3 { font-size:16px; font-weight:700; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #e2e8f0; }
+.set-field { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+.set-field label { font-size:12px; font-weight:600; color:#4a5568; }
+.set-field input { padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none; }
+.success-msg { text-align:center; color:#276749; font-size:13px; font-weight:600; margin-top:8px; padding:8px; background:#c6f6d5; border-radius:8px; display:none; }
 
-  /* Edit Modal */
-  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
-  .modal-overlay.show { display: flex; }
-  .modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
-  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1a202c; }
-  .modal .form-group { margin-bottom: 12px; }
-  .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
-  .btn-save { flex: 1; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .btn-cancel { flex: 1; padding: 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-
-  /* Pricing Page */
-  .pricing-header { text-align: center; padding: 24px 16px 8px; }
-  .pricing-header h2 { font-size: 22px; font-weight: 700; color: #1a202c; }
-  .pricing-header p { font-size: 14px; color: #718096; margin-top: 6px; }
-
-  .pricing-cards { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
-  .pricing-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); border: 2px solid #e2e8f0; position: relative; }
-  .pricing-card.popular { border-color: #2d6a4f; }
-  .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #2d6a4f; color: white; padding: 4px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; }
-  .plan-name { font-size: 18px; font-weight: 700; color: #1a202c; }
-  .plan-price { font-size: 36px; font-weight: 700; color: #2d6a4f; margin: 8px 0 4px; }
-  .plan-price span { font-size: 16px; color: #718096; font-weight: 400; }
-  .plan-desc { font-size: 13px; color: #718096; margin-bottom: 16px; }
-  .plan-features { list-style: none; margin-bottom: 20px; }
-  .plan-features li { font-size: 14px; color: #4a5568; padding: 6px 0; border-bottom: 1px solid #f7fafc; display: flex; align-items: center; gap: 8px; }
-  .plan-features li::before { content: "✅"; font-size: 14px; }
-  .btn-subscribe { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
-  .btn-subscribe.primary { background: #2d6a4f; color: white; }
-  .btn-subscribe.outline { background: white; color: #2d6a4f; border: 2px solid #2d6a4f; }
-
-  /* Admin Pricing Settings */
-  .admin-section { background: white; border-radius: 12px; padding: 20px; margin: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .admin-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1a202c; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-  .price-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .price-input-row label { flex: 1; font-size: 14px; color: #4a5568; font-weight: 500; }
-  .price-input-row input { width: 100px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; text-align: right; }
-  .btn-save-pricing { width: 100%; padding: 12px; background: #2d6a4f; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
-  .success-msg { display: none; text-align: center; color: #276749; font-size: 14px; font-weight: 600; margin-top: 10px; }
-
-  .empty-state { text-align: center; padding: 40px 20px; color: #a0aec0; }
-  .footer { text-align: center; padding: 20px; font-size: 12px; color: #a0aec0; }
+.wa-float { position:fixed; bottom:20px; right:16px; z-index:999; }
+.wa-float a { display:flex; align-items:center; gap:8px; background:#25D366; color:white; padding:12px 18px; border-radius:50px; text-decoration:none; font-size:13px; font-weight:700; box-shadow:0 4px 16px rgba(37,211,102,0.45); }
+.sync-indicator { font-size:11px; color:#718096; text-align:center; padding:4px; }
+.footer { text-align:center; padding:16px; font-size:12px; color:#a0aec0; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>📦 StokKita</h1>
-  <p>Pengurus Inventori Kedai Runcit</p>
+<!-- LOADING -->
+<div id="loadingScreen" class="loading-screen">
+  <div class="spinner"></div>
 </div>
 
-<div class="nav">
-  <button class="nav-btn active" onclick="showPage('inventory')">📦 Inventory</button>
-  <button class="nav-btn" onclick="showPage('pricing')">💰 Pricing</button>
-  <button class="nav-btn" onclick="showPage('admin')">⚙️ Settings</button>
-</div>
-
-<!-- INVENTORY PAGE -->
-<div id="page-inventory" class="page active">
-  <div class="stats">
-    <div class="stat-card">
-      <div class="number" id="totalItems">0</div>
-      <div class="label">Total Items</div>
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <h1>📦 StokKita</h1>
+      <p>Pengurus Inventori Kedai Runcit</p>
     </div>
-    <div class="stat-card alert">
-      <div class="number" id="lowStockCount">0</div>
-      <div class="label">Low Stock</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Log In</button>
+      <button class="auth-tab" onclick="switchTab('register')">Daftar</button>
     </div>
-    <div class="stat-card">
-      <div class="number" id="totalValue">RM0</div>
-      <div class="label">Stock Value</div>
+    <div id="loginForm">
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="email@example.com"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"></div>
+      <button class="btn-auth" onclick="login()">Log In</button>
     </div>
-  </div>
-
-  <div class="section">
-    <div class="add-form">
-      <div class="section-title">➕ Add New Item</div>
-      <div class="form-grid">
-        <div class="form-group full">
-          <label>Item Name</label>
-          <input type="text" id="itemName" placeholder="e.g. Milo 1kg">
-        </div>
-        <div class="form-group">
-          <label>Quantity</label>
-          <input type="number" id="itemQty" placeholder="0" min="0">
-        </div>
-        <div class="form-group">
-          <label>Price (RM)</label>
-          <input type="number" id="itemPrice" placeholder="0.00" step="0.01" min="0">
-        </div>
-        <div class="form-group">
-          <label>Low Stock Alert</label>
-          <input type="number" id="itemAlert" placeholder="5" min="0">
-        </div>
-        <div class="form-group">
-          <label>Category</label>
-          <input type="text" id="itemCat" placeholder="e.g. Drinks">
-        </div>
-      </div>
-      <button class="btn-add" onclick="addItem()">Add to Inventory</button>
+    <div id="registerForm" style="display:none">
+      <div class="field"><label>Nama Kedai</label><input id="regShop" placeholder="e.g. Kedai Ahmad"></div>
+      <div class="field"><label>Email</label><input id="regEmail" type="email" placeholder="email@example.com"></div>
+      <div class="field"><label>Password</label><input id="regPass" type="password" placeholder="Min 6 characters"></div>
+      <div class="field"><label>Telegram Chat ID (untuk alert)</label><input id="regTg" placeholder="e.g. 123456789" type="number"></div>
+      <button class="btn-auth" onclick="register()">Daftar Percuma</button>
     </div>
-
-    <input class="search-bar" type="text" id="searchBar" placeholder="🔍 Search items..." oninput="renderItems()">
-
-    <div id="alertBanner" style="display:none" class="alert-banner">
-      <span>⚠️</span>
-      <p id="alertText"></p>
-    </div>
-
-    <div class="section-title">📋 Inventory List</div>
-    <div class="item-list" id="itemList"></div>
+    <div id="authMsg" class="auth-msg"></div>
   </div>
 </div>
 
-<!-- PRICING PAGE -->
-<div id="page-pricing" class="page">
-  <div class="pricing-header">
-    <h2>Pilih Plan Anda</h2>
-    <p>Semua plan termasuk 14 hari free trial</p>
+<!-- MAIN APP -->
+<div id="app" class="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>📦 StokKita</h1>
+      <p id="shopLabel">Loading...</p>
+    </div>
+    <button class="btn-logout" onclick="logout()">Log Out</button>
   </div>
 
-  <div class="pricing-cards" id="pricingCards"></div>
-</div>
-
-<!-- ADMIN SETTINGS PAGE -->
-<div id="page-admin" class="page">
-  <div class="admin-section">
-    <h3>💰 Set Your Subscription Prices</h3>
-    <div class="price-input-row">
-      <label>Basic Plan (per month)</label>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:13px;color:#718096">RM</span>
-        <input type="number" id="priceBasic" value="99" min="0">
-      </div>
-    </div>
-    <div class="price-input-row">
-      <label>Pro Plan (per month)</label>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:13px;color:#718096">RM</span>
-        <input type="number" id="pricePro" value="199" min="0">
-      </div>
-    </div>
-    <div class="price-input-row">
-      <label>Enterprise Plan (per month)</label>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:13px;color:#718096">RM</span>
-        <input type="number" id="priceEnterprise" value="299" min="0">
-      </div>
-    </div>
-    <button class="btn-save-pricing" onclick="savePricing()">💾 Save Pricing</button>
-    <div class="success-msg" id="successMsg">✅ Pricing updated successfully!</div>
+  <div class="nav">
+    <button class="nav-btn active" id="tab-inventory" onclick="showPage('inventory')">📦 Inventory</button>
+    <button class="nav-btn" id="tab-pricing" onclick="showPage('pricing')">💰 Pricing</button>
+    <button class="nav-btn" id="tab-settings" onclick="showPage('settings')">⚙️ Settings</button>
   </div>
 
-  <div class="admin-section">
-    <h3>🏪 Shop Settings</h3>
-    <div class="form-group" style="margin-bottom:12px">
-      <label>Shop Name</label>
-      <input type="text" id="shopName" placeholder="e.g. Kedai Vincent" value="Kedai Vincent">
+  <!-- INVENTORY -->
+  <div id="page-inventory" class="page active">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-num" id="sTotal">0</div><div class="stat-lbl">Total Items</div></div>
+      <div class="stat-card"><div class="stat-num red" id="sLow">0</div><div class="stat-lbl">Low Stock</div></div>
+      <div class="stat-card"><div class="stat-num" id="sValue">RM0</div><div class="stat-lbl">Stock Value</div></div>
     </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label>Owner Name</label>
-      <input type="text" id="ownerName" placeholder="e.g. Vincent">
+    <div class="section">
+      <div class="card">
+        <div class="card-title">➕ Add New Item</div>
+        <div class="grid2">
+          <div class="field2 full"><label>Item Name</label><input id="iName" placeholder="e.g. Milo 1kg"></div>
+          <div class="field2"><label>Quantity</label><input id="iQty" type="number" placeholder="0" min="0"></div>
+          <div class="field2"><label>Price (RM)</label><input id="iPrice" type="number" placeholder="0.00" step="0.01"></div>
+          <div class="field2"><label>Low Stock Alert</label><input id="iAlert" type="number" placeholder="5" min="0"></div>
+          <div class="field2"><label>Category</label><input id="iCat" placeholder="e.g. Drinks"></div>
+        </div>
+        <button class="btn-green" onclick="addItem()">Add to Inventory</button>
+      </div>
+      <input class="search" id="searchBar" placeholder="🔍 Search items..." oninput="renderItems()">
+      <div id="alertBanner" class="alert-banner"></div>
+      <div class="sync-indicator" id="syncStatus">✅ Connected to cloud</div>
+      <div class="card-title" style="margin-top:8px">📋 Inventory List</div>
+      <div class="item-list" id="itemList"></div>
     </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label>Telegram/WhatsApp Number</label>
-      <input type="text" id="contactNum" placeholder="e.g. 60123456789">
+  </div>
+
+  <!-- PRICING -->
+  <div id="page-pricing" class="page">
+    <div class="pricing-top"><h2>Pilih Plan Anda</h2><p>Semua plan termasuk 14 hari free trial</p></div>
+    <div class="plan-cards">
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">RM 99<span>/bulan</span></div>
+        <div class="plan-desc">Sesuai untuk kedai kecil</div>
+        <ul class="plan-features"><li>Unlimited items</li><li>Low stock alerts</li><li>Telegram notifications</li><li>Mobile friendly</li><li>14 hari free trial</li></ul>
+        <button class="btn-sub outline" onclick="contactWa('Basic','99')">Mula Free Trial</button>
+      </div>
+      <div class="plan-card hot">
+        <div class="hot-badge">⭐ PALING POPULAR</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">RM 199<span>/bulan</span></div>
+        <div class="plan-desc">Paling popular untuk SME</div>
+        <ul class="plan-features"><li>Semua Basic features</li><li>Auto reorder alerts</li><li>Weekly sales report</li><li>Multi-user access</li><li>Priority support</li></ul>
+        <button class="btn-sub green" onclick="contactWa('Pro','199')">Pilih Pro Plan</button>
+      </div>
+      <div class="plan-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price">RM 299<span>/bulan</span></div>
+        <div class="plan-desc">Untuk perniagaan besar</div>
+        <ul class="plan-features"><li>Semua Pro features</li><li>Custom branding</li><li>API integration</li><li>Dedicated support</li><li>Custom reports</li></ul>
+        <button class="btn-sub outline" onclick="contactWa('Enterprise','299')">Hubungi Kami</button>
+      </div>
     </div>
-    <button class="btn-save-pricing" onclick="saveSettings()">💾 Save Settings</button>
+    <div class="contact-block">
+      <h3>🤝 Bercakap Dengan Kami</h3>
+      <p>Ada soalan? Kami sedia membantu!</p>
+      <a class="btn-wa" href="https://wa.me/60173708432?text=Hi%20StokKita!%20Saya%20berminat." target="_blank">💬 WhatsApp Sekarang</a>
+      <a class="btn-demo" href="https://wa.me/60173708432?text=Hi%20StokKita!%20Saya%20nak%20free%20demo." target="_blank">📱 Book Free Demo</a>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="page">
+    <div class="settings-card">
+      <h3>🔔 Alert Settings</h3>
+      <div class="set-field"><label>Telegram Chat ID</label><input id="sTg" placeholder="e.g. 8235005795" type="number"></div>
+      <div class="set-field"><label>Shop Name</label><input id="sName" placeholder="e.g. Kedai Ahmad"></div>
+      <div class="set-field"><label>Owner Phone (WhatsApp)</label><input id="sPhone" placeholder="e.g. 60123456789"></div>
+      <button class="btn-green" onclick="saveSettings()">💾 Save Settings</button>
+      <div class="success-msg" id="settingsMsg">✅ Settings saved!</div>
+    </div>
+    <div class="settings-card">
+      <h3>📊 Account Info</h3>
+      <div id="accountInfo" style="font-size:14px;color:#4a5568;line-height:2"></div>
+    </div>
+    <div class="settings-card">
+      <h3>📞 Contact Support</h3>
+      <a href="https://wa.me/60173708432" target="_blank" style="display:flex;align-items:center;gap:10px;background:#25D366;color:white;padding:12px 16px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
+        💬 WhatsApp Support: 60173708432
+      </a>
+    </div>
   </div>
 </div>
 
 <!-- EDIT MODAL -->
-<div class="modal-overlay" id="editModal">
+<div class="overlay" id="editModal">
   <div class="modal">
     <h3>✏️ Edit Item</h3>
-    <div class="form-group">
-      <label>Item Name</label>
-      <input type="text" id="editName">
-    </div>
-    <div class="form-group">
-      <label>Price (RM)</label>
-      <input type="number" id="editPrice" step="0.01" min="0">
-    </div>
-    <div class="form-group">
-      <label>Quantity</label>
-      <input type="number" id="editQty" min="0">
-    </div>
-    <div class="form-group">
-      <label>Low Stock Alert Level</label>
-      <input type="number" id="editAlert" min="0">
-    </div>
-    <div class="form-group">
-      <label>Category</label>
-      <input type="text" id="editCat">
-    </div>
+    <div class="modal-field"><label>Item Name</label><input id="eName"></div>
+    <div class="modal-field"><label>Price (RM)</label><input id="ePrice" type="number" step="0.01"></div>
+    <div class="modal-field"><label>Quantity</label><input id="eQty" type="number"></div>
+    <div class="modal-field"><label>Low Stock Alert</label><input id="eAlert" type="number"></div>
+    <div class="modal-field"><label>Category</label><input id="eCat"></div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeEdit()">Cancel</button>
-      <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+      <button style="background:#e2e8f0;color:#4a5568" onclick="closeEdit()">Cancel</button>
+      <button style="background:#2d6a4f;color:white" onclick="saveEdit()">Save</button>
     </div>
   </div>
 </div>
 
-<div class="footer">StokKita v2.0 · Made for Malaysian SMEs</div>
+<div class="wa-float">
+  <a href="https://wa.me/60173708432?text=Hi%20StokKita!%20Saya%20perlukan%20bantuan." target="_blank">💬 Support</a>
+</div>
+
+<div class="footer">StokKita v4.0 · Cloud-powered · 📞 60173708432</div>
 
 <script>
-let items = JSON.parse(localStorage.getItem('stokkita_items') || '[]');
-let editingId = null;
-let pricing = JSON.parse(localStorage.getItem('stokkita_pricing') || '{"basic":99,"pro":199,"enterprise":299}');
+// ============================================
+// SUPABASE CONFIG — Replace with your details
+// ============================================
+const SUPABASE_URL = 'https://mjvlthcriljwpgtuwwel.supabase.co';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // ← paste your anon key here
+// ============================================
 
-const EMOJIS = { 'drinks':'🥤','food':'🍜','snacks':'🍪','cleaning':'🧹','personal':'🧴','default':'📦' };
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let items = [];
+let editId = null;
 
-function getEmoji(cat) {
-  if (!cat) return '📦';
-  const k = cat.toLowerCase();
-  for (let key in EMOJIS) if (k.includes(key)) return EMOJIS[key];
-  return '📦';
+const EMOJI = {drinks:'🥤',food:'🍜',snacks:'🍪',cleaning:'🧹',personal:'🧴'};
+function getEmoji(cat){ if(!cat) return '📦'; const k=cat.toLowerCase(); for(let e in EMOJI) if(k.includes(e)) return EMOJI[e]; return '📦'; }
+
+// ============ AUTH ============
+async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session){
+    currentUser = session.user;
+    await loadApp();
+  } else {
+    showAuth();
+  }
 }
 
-function save() { localStorage.setItem('stokkita_items', JSON.stringify(items)); }
+function showAuth(){
+  document.getElementById('loadingScreen').style.display='none';
+  document.getElementById('authScreen').style.display='flex';
+}
 
-function showPage(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+function showApp(){
+  document.getElementById('loadingScreen').style.display='none';
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));
   event.target.classList.add('active');
-  if (page === 'pricing') renderPricing();
-  if (page === 'admin') loadAdminSettings();
+  document.getElementById('loginForm').style.display = tab==='login'?'block':'none';
+  document.getElementById('registerForm').style.display = tab==='register'?'block':'none';
+  document.getElementById('authMsg').className='auth-msg';
 }
 
-function addItem() {
-  const name = document.getElementById('itemName').value.trim();
-  const qty = parseInt(document.getElementById('itemQty').value) || 0;
-  const price = parseFloat(document.getElementById('itemPrice').value) || 0;
-  const alert = parseInt(document.getElementById('itemAlert').value) || 5;
-  const cat = document.getElementById('itemCat').value.trim();
-  if (!name) { document.getElementById('itemName').focus(); return; }
-  items.push({ id: Date.now(), name, qty, price, alert, cat });
-  save();
-  document.getElementById('itemName').value = '';
-  document.getElementById('itemQty').value = '';
-  document.getElementById('itemPrice').value = '';
-  document.getElementById('itemAlert').value = '';
-  document.getElementById('itemCat').value = '';
+function showMsg(msg, type='error'){
+  const el = document.getElementById('authMsg');
+  el.textContent = msg;
+  el.className = 'auth-msg ' + type;
+}
+
+async function login(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!email || !pass){ showMsg('Please enter email and password'); return; }
+  showMsg('Logging in...', 'success');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error){ showMsg(error.message); return; }
+  currentUser = data.user;
+  await loadApp();
+}
+
+async function register(){
+  const shop = document.getElementById('regShop').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const tg = document.getElementById('regTg').value.trim();
+  if(!shop || !email || !pass){ showMsg('Please fill in all fields'); return; }
+  if(pass.length < 6){ showMsg('Password must be at least 6 characters'); return; }
+  showMsg('Creating account...', 'success');
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { shop_name: shop, telegram_id: tg } }
+  });
+  if(error){ showMsg(error.message); return; }
+  showMsg('✅ Account created! Please check your email to verify, then log in.', 'success');
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  currentUser = null;
+  items = [];
+  document.getElementById('app').style.display='none';
+  showAuth();
+}
+
+async function loadApp(){
+  showApp();
+  const meta = currentUser.user_metadata || {};
+  document.getElementById('shopLabel').textContent = meta.shop_name || currentUser.email;
+  await loadItems();
+  loadAccountInfo();
+  loadSettingsValues();
+}
+
+// ============ ITEMS ============
+async function loadItems(){
+  document.getElementById('syncStatus').textContent = '🔄 Syncing...';
+  const { data, error } = await sb.from('inventory')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false });
+  if(error){ document.getElementById('syncStatus').textContent = '❌ Sync error'; return; }
+  items = data || [];
+  document.getElementById('syncStatus').textContent = '✅ Connected to cloud';
   renderItems();
 }
 
-function updateQty(id, delta) {
-  const item = items.find(i => i.id === id);
-  if (item) { item.qty = Math.max(0, item.qty + delta); save(); renderItems(); }
+async function addItem(){
+  const name = document.getElementById('iName').value.trim();
+  if(!name){ document.getElementById('iName').focus(); return; }
+  const newItem = {
+    user_id: currentUser.id,
+    shop_name: currentUser.user_metadata?.shop_name || 'My Shop',
+    item_name: name,
+    quantity: parseInt(document.getElementById('iQty').value)||0,
+    price: parseFloat(document.getElementById('iPrice').value)||0,
+    alert_level: parseInt(document.getElementById('iAlert').value)||5,
+    category: document.getElementById('iCat').value.trim()
+  };
+  const { data, error } = await sb.from('inventory').insert([newItem]).select();
+  if(error){ alert('Error: ' + error.message); return; }
+  items.unshift(data[0]);
+  ['iName','iQty','iPrice','iAlert','iCat'].forEach(id=>document.getElementById(id).value='');
+  renderItems();
 }
 
-function deleteItem(id) {
-  if (confirm('Remove this item?')) { items = items.filter(i => i.id !== id); save(); renderItems(); }
+async function updateQty(id, delta){
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  const newQty = Math.max(0, item.quantity + delta);
+  const { error } = await sb.from('inventory').update({ quantity: newQty }).eq('id', id);
+  if(error){ alert('Error: ' + error.message); return; }
+  item.quantity = newQty;
+  renderItems();
 }
 
-function openEdit(id) {
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  editingId = id;
-  document.getElementById('editName').value = item.name;
-  document.getElementById('editPrice').value = item.price;
-  document.getElementById('editQty').value = item.qty;
-  document.getElementById('editAlert').value = item.alert;
-  document.getElementById('editCat').value = item.cat || '';
+async function deleteItem(id){
+  if(!confirm('Remove this item?')) return;
+  const { error } = await sb.from('inventory').delete().eq('id', id);
+  if(error){ alert('Error: ' + error.message); return; }
+  items = items.filter(i=>i.id!==id);
+  renderItems();
+}
+
+function openEdit(id){
+  const item = items.find(i=>i.id===id); if(!item) return;
+  editId = id;
+  document.getElementById('eName').value = item.item_name;
+  document.getElementById('ePrice').value = item.price;
+  document.getElementById('eQty').value = item.quantity;
+  document.getElementById('eAlert').value = item.alert_level;
+  document.getElementById('eCat').value = item.category||'';
   document.getElementById('editModal').classList.add('show');
 }
 
-function closeEdit() {
-  editingId = null;
-  document.getElementById('editModal').classList.remove('show');
+function closeEdit(){ editId=null; document.getElementById('editModal').classList.remove('show'); }
+
+async function saveEdit(){
+  const item = items.find(i=>i.id===editId); if(!item) return;
+  const updates = {
+    item_name: document.getElementById('eName').value.trim()||item.item_name,
+    price: parseFloat(document.getElementById('ePrice').value)||0,
+    quantity: parseInt(document.getElementById('eQty').value)||0,
+    alert_level: parseInt(document.getElementById('eAlert').value)||5,
+    category: document.getElementById('eCat').value.trim()
+  };
+  const { error } = await sb.from('inventory').update(updates).eq('id', id);
+  if(error){ alert('Error: ' + error.message); return; }
+  Object.assign(item, updates);
+  closeEdit(); renderItems();
 }
 
-function saveEdit() {
-  const item = items.find(i => i.id === editingId);
-  if (!item) return;
-  item.name = document.getElementById('editName').value.trim() || item.name;
-  item.price = parseFloat(document.getElementById('editPrice').value) || 0;
-  item.qty = parseInt(document.getElementById('editQty').value) || 0;
-  item.alert = parseInt(document.getElementById('editAlert').value) || 5;
-  item.cat = document.getElementById('editCat').value.trim();
-  save();
-  closeEdit();
-  renderItems();
-}
-
-function renderItems() {
-  const search = document.getElementById('searchBar').value.toLowerCase();
-  const filtered = items.filter(i => i.name.toLowerCase().includes(search) || (i.cat||'').toLowerCase().includes(search));
-
-  document.getElementById('totalItems').textContent = items.length;
-  document.getElementById('lowStockCount').textContent = items.filter(i => i.qty <= i.alert).length;
-  document.getElementById('totalValue').textContent = 'RM' + items.reduce((s,i) => s+(i.qty*i.price),0).toFixed(0);
-
-  const alertItems = items.filter(i => i.qty <= i.alert);
+function renderItems(){
+  const q = document.getElementById('searchBar').value.toLowerCase();
+  const f = items.filter(i=>(i.item_name||'').toLowerCase().includes(q)||(i.category||'').toLowerCase().includes(q));
+  document.getElementById('sTotal').textContent = items.length;
+  document.getElementById('sLow').textContent = items.filter(i=>i.quantity<=i.alert_level).length;
+  document.getElementById('sValue').textContent = 'RM'+items.reduce((s,i)=>s+i.quantity*i.price,0).toFixed(0);
+  const low = items.filter(i=>i.quantity<=i.alert_level);
   const banner = document.getElementById('alertBanner');
-  if (alertItems.length > 0) {
-    banner.style.display = 'flex';
-    document.getElementById('alertText').textContent = alertItems.length + ' item(s) perlu restock: ' + alertItems.slice(0,3).map(i=>i.name).join(', ');
-  } else { banner.style.display = 'none'; }
-
+  if(low.length>0){ banner.style.display='block'; banner.textContent='⚠️ '+low.length+' item(s) perlu restock: '+low.slice(0,3).map(i=>i.item_name).join(', '); }
+  else { banner.style.display='none'; }
   const list = document.getElementById('itemList');
-  if (filtered.length === 0) {
-    list.innerHTML = `<div class="empty-state"><div style="font-size:48px;margin-bottom:12px">📭</div><p>${items.length===0?'No items yet. Add your first item above!':'No items match your search.'}</p></div>`;
-    return;
-  }
-
-  list.innerHTML = filtered.map(item => {
-    const isOut = item.qty === 0;
-    const isLow = !isOut && item.qty <= item.alert;
-    const cardClass = isOut ? 'out-of-stock' : isLow ? 'low-stock' : '';
-    const badge = isOut ? '<span class="badge out">Out of Stock</span>' : isLow ? '<span class="badge low">Low Stock</span>' : '<span class="badge ok">In Stock</span>';
-    return `
-      <div class="item-card ${cardClass}">
-        <div class="item-icon">${getEmoji(item.cat)}</div>
-        <div class="item-info">
-          <div class="item-name">${item.name}</div>
-          <div class="item-meta">${item.cat||'General'} · Alert at ${item.alert}</div>
-          <div class="item-price">RM ${item.price.toFixed(2)}</div>
-          ${badge}
+  if(f.length===0){ list.innerHTML=`<div class="empty">${items.length===0?'📭 No items yet. Add your first item above!':'No items match.'}</div>`; return; }
+  list.innerHTML = f.map(item=>{
+    const isOut=item.quantity===0, isLow=!isOut&&item.quantity<=item.alert_level;
+    const cls=isOut?'out':isLow?'low':'';
+    const badge=isOut?'<span class="badge badge-out">Out of Stock</span>':isLow?'<span class="badge badge-low">Low Stock</span>':'<span class="badge badge-ok">In Stock</span>';
+    return `<div class="item-card ${cls}">
+      <div class="item-icon">${getEmoji(item.category)}</div>
+      <div class="item-info">
+        <div class="item-name">${item.item_name}</div>
+        <div class="item-meta">${item.category||'General'} · Alert: ${item.alert_level}</div>
+        <div class="item-price">RM ${parseFloat(item.price).toFixed(2)}</div>
+        ${badge}
+      </div>
+      <div class="qty-wrap">
+        <div class="qty-num">${item.quantity}</div>
+        <div class="qty-lbl">units</div>
+        <div class="qty-btns">
+          <button class="qbtn minus" onclick="updateQty(${item.id},-1)">−</button>
+          <button class="qbtn plus" onclick="updateQty(${item.id},1)">+</button>
         </div>
-        <div class="item-qty">
-          <div class="qty-display">${item.qty}</div>
-          <div class="qty-label">units</div>
-          <div class="qty-controls">
-            <button class="qty-btn minus" onclick="updateQty(${item.id},-1)">−</button>
-            <button class="qty-btn plus" onclick="updateQty(${item.id},1)">+</button>
-          </div>
-        </div>
-        <div class="item-actions">
-          <button class="btn-edit" onclick="openEdit(${item.id})">✏️ Edit</button>
-          <button class="btn-delete" onclick="deleteItem(${item.id})">🗑 Del</button>
-        </div>
-      </div>`;
+      </div>
+      <div class="item-actions">
+        <button class="btn-edit" onclick="openEdit(${item.id})">✏️ Edit</button>
+        <button class="btn-del" onclick="deleteItem(${item.id})">🗑 Del</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function renderPricing() {
-  const plans = [
-    {
-      name: 'Basic',
-      price: pricing.basic,
-      desc: 'Sesuai untuk kedai kecil',
-      features: ['Track unlimited items', 'Low stock alerts', 'Telegram notifications', 'Mobile friendly', '14 hari free trial'],
-      popular: false,
-      btn: 'Mula Free Trial'
-    },
-    {
-      name: 'Pro',
-      price: pricing.pro,
-      desc: 'Paling popular untuk SME',
-      features: ['Semua Basic features', 'Auto reorder alerts', 'Sales reports weekly', 'Multi-user access', 'Priority support'],
-      popular: true,
-      btn: 'Pilih Pro Plan'
-    },
-    {
-      name: 'Enterprise',
-      price: pricing.enterprise,
-      desc: 'Untuk perniagaan yang besar',
-      features: ['Semua Pro features', 'Custom branding', 'API integration', 'Dedicated support', 'Custom reports'],
-      popular: false,
-      btn: 'Hubungi Kami'
-    }
-  ];
-
-  document.getElementById('pricingCards').innerHTML = plans.map(plan => `
-    <div class="pricing-card ${plan.popular ? 'popular' : ''}">
-      ${plan.popular ? '<div class="popular-badge">⭐ PALING POPULAR</div>' : ''}
-      <div class="plan-name">${plan.name}</div>
-      <div class="plan-price">RM ${plan.price}<span>/bulan</span></div>
-      <div class="plan-desc">${plan.desc}</div>
-      <ul class="plan-features">
-        ${plan.features.map(f => `<li>${f}</li>`).join('')}
-      </ul>
-      <button class="btn-subscribe ${plan.popular ? 'primary' : 'outline'}" onclick="alert('Hubungi kami untuk subscribe ${plan.name} plan pada RM ${plan.price}/bulan!')">
-        ${plan.btn}
-      </button>
-    </div>
-  `).join('');
+// ============ SETTINGS ============
+function loadSettingsValues(){
+  const meta = currentUser.user_metadata || {};
+  document.getElementById('sTg').value = meta.telegram_id || '';
+  document.getElementById('sName').value = meta.shop_name || '';
+  document.getElementById('sPhone').value = meta.phone || '';
 }
 
-function savePricing() {
-  pricing.basic = parseInt(document.getElementById('priceBasic').value) || 99;
-  pricing.pro = parseInt(document.getElementById('pricePro').value) || 199;
-  pricing.enterprise = parseInt(document.getElementById('priceEnterprise').value) || 299;
-  localStorage.setItem('stokkita_pricing', JSON.stringify(pricing));
-  const msg = document.getElementById('successMsg');
+async function saveSettings(){
+  const tg = document.getElementById('sTg').value.trim();
+  const name = document.getElementById('sName').value.trim();
+  const phone = document.getElementById('sPhone').value.trim();
+  const { error } = await sb.auth.updateUser({ data: { telegram_id: tg, shop_name: name, phone } });
+  if(error){ alert('Error: ' + error.message); return; }
+  currentUser.user_metadata = { ...currentUser.user_metadata, telegram_id: tg, shop_name: name, phone };
+  document.getElementById('shopLabel').textContent = name || currentUser.email;
+  const msg = document.getElementById('settingsMsg');
   msg.style.display = 'block';
-  setTimeout(() => msg.style.display = 'none', 3000);
+  setTimeout(()=>msg.style.display='none', 3000);
 }
 
-function loadAdminSettings() {
-  document.getElementById('priceBasic').value = pricing.basic;
-  document.getElementById('pricePro').value = pricing.pro;
-  document.getElementById('priceEnterprise').value = pricing.enterprise;
+function loadAccountInfo(){
+  const meta = currentUser.user_metadata || {};
+  document.getElementById('accountInfo').innerHTML = `
+    📧 <b>Email:</b> ${currentUser.email}<br>
+    🏪 <b>Shop:</b> ${meta.shop_name || 'Not set'}<br>
+    📱 <b>Telegram ID:</b> ${meta.telegram_id || 'Not set'}<br>
+    📅 <b>Member since:</b> ${new Date(currentUser.created_at).toLocaleDateString('en-MY')}
+  `;
 }
 
-function saveSettings() {
-  alert('Settings saved! ✅');
+// ============ UI ============
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('tab-'+p).classList.add('active');
 }
 
-// Sample data
-if (items.length === 0) {
-  items = [
-    { id: 1, name: 'Milo 1kg', qty: 3, price: 18.90, alert: 5, cat: 'Drinks' },
-    { id: 2, name: 'Beras Cap Rambutan 5kg', qty: 8, price: 24.50, alert: 5, cat: 'Food' },
-    { id: 3, name: 'Maggi Mee (pack)', qty: 2, price: 4.20, alert: 10, cat: 'Food' },
-    { id: 4, name: 'Sabun Mandi Dettol', qty: 8, price: 6.50, alert: 5, cat: 'Personal' },
-  ];
-  save();
+function contactWa(plan, price){
+  window.open(`https://wa.me/60173708432?text=Hi%20StokKita!%20Saya%20nak%20subscribe%20${plan}%20plan%20RM${price}/bulan.`, '_blank');
 }
 
-<!-- SUPABASE (DO NOT TOUCH STRUCTURE) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
-<script>
-const SUPABASE_URL = 'https://mjvlthcrijwpgtuwel.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qdmx0aGNyaWxqd3BndHV3d2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5MTA4MzgsImV4cCI6MjA5MTQ4NjgzOH0.KFSPUdzqLpJa7xtvPmL1Yf1YfZCvKGkWXXrzb9D-JCA';
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-console.log("✅ Supabase Connected:", supabaseClient);
+// Start
+init();
 </script>
-
+</body>
+</html>
